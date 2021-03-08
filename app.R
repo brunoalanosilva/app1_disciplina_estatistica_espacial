@@ -4,6 +4,8 @@ library(shinydashboardPlus)
 library(dashboardthemes)
 library(tidyverse)
 library(lubridate)
+library(leaflet)
+library(leaflet.extras)
 library(RSocrata)
 
 
@@ -37,6 +39,11 @@ library(RSocrata)
 # lendo o banco de dados ja baixado pra n demorar muito
 
 dados <- read_csv("dados.csv")
+
+# fazendo o banco para o mapa sem as latitudes e longitudes 0
+
+dados_mapa <- dados %>%
+    filter(latitude != 0) # retirando latitudes e longitudes estranhas
 
 # componentes do UI
 
@@ -99,18 +106,33 @@ body <- dashboardBody(
         ),
         tabItem(
             "aba_gustavo",
-            # exemplo de aba
-            sidebarPanel(
-                sliderInput("bins_aba_3",
-                            "Number of bins:",
-                            min = 1,
-                            max = 50,
-                            value = 30)
-            ),
-            
-            # Show a plot of the generated distribution
-            mainPanel(
-                plotOutput("distPlot_aba_3")
+            fluidPage(
+                titlePanel(
+                    "Mapa com ocorrência dos acidentes"
+                ),
+                fluidRow(
+                    column(
+                        width = 6,
+                        h4("Defina se serão apresentados os acidentes sem ou com lesão:"),
+                        radioButtons("injury_3",
+                                     label = NULL,
+                                     choices = list("Sem lesão" = "none","Com lesão" = "injuries"),
+                                     selected = "none",
+                                     inline = T)
+                    ),
+                    column(
+                        width = 6,
+                        valueBoxOutput("n_acidentes_3", width = 12),
+                    ),
+                    column(
+                        width = 12,
+                        mainPanel(
+                            leafletOutput("mapa_acidentes", height = "600px"),
+                            width = 12
+                        )
+                    )
+                )
+                
             )
         )
     )
@@ -149,13 +171,32 @@ server <- function(input, output) {
     
     ######### ABA 3 ###########
     
-    output$distPlot_aba_3 <- renderPlot({
-        # generate bins based on input$bins from ui.R
-        x    <- faithful[, 2]
-        bins <- seq(min(x), max(x), length.out = input$bins_aba_3 + 1)
+    output$n_acidentes_3 <- renderValueBox({
         
-        # draw the histogram with the specified number of bins
-        hist(x, breaks = bins, col = 'darkgray', border = 'white')
+        aux <- dados_mapa %>%
+            filter(injuries %in% input$injury_3)
+        
+        valueBox(
+            nrow(aux), 
+            "Acidentes", 
+            icon = icon("car-crash"),
+            color = "purple",
+            width = NULL
+        )
+    })
+    
+    output$mapa_acidentes <- renderLeaflet({
+        
+        aux <- dados_mapa %>%
+            filter(injuries %in% input$injury_3)
+        
+        max <- nrow(aux)/200
+        
+        leaflet(aux) %>%
+            addTiles() %>%
+            addHeatmap(lng = ~longitude, lat = ~latitude,
+                       blur = 17, max = max, radius = 20)
+        
     })
 }
 
