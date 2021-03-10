@@ -39,18 +39,23 @@ library(ggmosaic)
 #     ) %>%
 #     na.omit()
 
+
+
+# lendo o banco de dados ja baixado pra n demorar muito
+dados <- read_csv("dados.csv")
+
+dados_g <- dados
+dados_g$weather_condition <- as.factor(dados_g$weather_condition)
+dados_g$lighting_condition <- as.factor(dados_g$lighting_condition)
+dados_g$roadway_surface_cond <- as.factor(dados_g$roadway_surface_cond)
+
+
 b_escolhas <- names(dados)[3:12]
 b_escolhas_qualitativo <- c(F,T,F,T,T,T,T,T,T,T)
 dados_b <- dados
 dados_b$posted_speed_limit <- as.factor(dados_b$posted_speed_limit)
 
 
-
-
-# lendo o banco de dados ja baixado pra n demorar muito
-
-
-dados <- read_csv("dados.csv")
 
 # fazendo o banco para o mapa sem as latitudes e longitudes 0
 
@@ -60,7 +65,7 @@ dados_mapa <- dados %>%
 # componentes do UI
 
 # cabeçalho
-header <- dashboardHeaderPlus( 
+header <- dashboardHeader( 
     title = "App BGG", # aceito sugestões de nomes melhores haha
     titleWidth = 400
 )
@@ -68,9 +73,9 @@ header <- dashboardHeaderPlus(
 # aba d lado
 sidebar <- dashboardSidebar(
     sidebarMenu(
-        menuItem("Gráfico .....", tabName = "aba_guilherme"), # aba para o guilherme fazer
         menuItem("Gráfico de Correlação", tabName = "aba_bruno",icon = icon("chart-bar")), # aba para o bruno fazer
-        menuItem("Mapa", tabName = "aba_gustavo") # aba para o gustavo fazer
+        menuItem("Mapa", tabName = "aba_gustavo"), # aba para o gustavo fazer
+        menuItem("Mapa -- cond de luz", tabName = "aba_guilherme", icon = icon("moon")) # aba para o guilherme fazer
     ),
     width = 180
 )
@@ -86,18 +91,36 @@ body <- dashboardBody(
     tabItems(
         tabItem(
             "aba_guilherme",
-            # exemplo de aba
-            sidebarPanel(
-                sliderInput("bins_aba_1",
-                            "Number of bins:",
-                            min = 1,
-                            max = 50,
-                            value = 30)
-            ),
-            
-            # Show a plot of the generated distribution
-            mainPanel(
-                plotOutput("distPlot_aba_1")
+            fluidPage(
+                titlePanel(
+                    "Mapa dos acidentes segundo a condição de iluminação"
+                ),
+                fluidRow(
+                    column(
+                        width = 6,
+                        h4("Escolha a condição de luz da estrada"),
+                        radioButtons("light",
+                                     label = NULL,
+                                     choices = list("Noite -- sem iluminação" = "DARKNESS",
+                                                    "Noite -- com iluminação" = "DARKNESS, LIGHTED ROAD",
+                                                    "Amanhecer" = "DAWN", "Dia limpo" = "DAYLIGHT",
+                                                    "Anoitecer" = "DUSK"),
+                                     selected = "DAYLIGHT",
+                                     inline = T)
+                    ),
+                    column(
+                        width = 6,
+                        valueBoxOutput("n_acidentes_1", width = 12),
+                    ),
+                    column(
+                        width = 12,
+                        mainPanel(
+                            leafletOutput("mapa_acidentes_luz", height = "600px"),
+                            width = 12
+                        )
+                    )
+                )
+                
             )
         ),
         tabItem(
@@ -163,7 +186,7 @@ body <- dashboardBody(
 )
 
 
-ui <- dashboardPagePlus(
+ui <- dashboardPage(
     header = header,
     sidebar = sidebar,
     body = body
@@ -173,14 +196,45 @@ server <- function(input, output) {
     
     ######### ABA 1 ###########
     
-    output$distPlot_aba_1 <- renderPlot({
-        # generate bins based on input$bins from ui.R
-        x    <- faithful[, 2]
-        bins <- seq(min(x), max(x), length.out = input$bins_aba_1 + 1)
-
-        # draw the histogram with the specified number of bins
-        hist(x, breaks = bins, col = 'darkgray', border = 'white')
+    output$n_acidentes_1 <- renderValueBox({
+        
+        cond <- dados_g %>%
+            filter(lighting_condition %in% input$light)
+        
+        valueBox(
+            nrow(cond), 
+            "Acidentes", 
+            icon = icon("car-crash"),
+            color = "purple",
+            width = NULL
+        )
     })
+    
+    output$mapa_acidentes_luz <- renderLeaflet({
+        
+        cond <- dados_g %>%
+            filter(lighting_condition %in% input$light)
+        
+        max <- nrow(cond)/200
+        
+        if(cond$lighting_condition %in% c("DARKNESS, LIGHTED ROAD","DARKNESS")){
+        
+            leaflet(cond) %>%
+                addProviderTiles(providers$CartoDB.DarkMatter) %>%
+                addHeatmap(lng = ~longitude, lat = ~latitude,
+                           blur = 15, max = max, radius = 10)    
+            
+        } else {
+        
+        leaflet(cond) %>%
+            addTiles() %>%
+            addHeatmap(lng = ~longitude, lat = ~latitude,
+                       blur = 15, max = max, radius = 10)
+        
+        }
+    })
+    
+    
     
     ######### ABA 2 ###########
     
@@ -193,10 +247,10 @@ server <- function(input, output) {
     
     output$b_grafico_correlacao <- renderPlotly({
         
-       ggplot(dados_b) + 
+        ggplot(dados_b) + 
             geom_count(mapping = aes_string(x = input$b_input_1,y=input$b_input_2),colour="blue") +
             scale_size(range=c(2, 8))
-       
+        
     })
     
     output$b_grafico_correlacao2 <- renderPlotly({
@@ -240,7 +294,7 @@ server <- function(input, output) {
         
     })
     
-
+    
     
     
     ######### ABA 3 ###########
@@ -269,7 +323,7 @@ server <- function(input, output) {
         leaflet(aux) %>%
             addTiles() %>%
             addHeatmap(lng = ~longitude, lat = ~latitude,
-                       blur = 20, max = max, radius = 10)
+                       blur = 15, max = max, radius = 10)
         
     })
     
