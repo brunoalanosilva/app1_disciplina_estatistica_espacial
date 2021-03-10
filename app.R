@@ -4,9 +4,13 @@ library(shinydashboardPlus)
 library(dashboardthemes)
 library(tidyverse)
 library(lubridate)
+library(plotly)
 library(leaflet)
 library(leaflet.extras)
-library(RSocrata)
+library(ggmosaic)
+
+#library(RSocrata)
+
 
 
 # # colinha pra baixar o banco e salvar
@@ -35,8 +39,16 @@ library(RSocrata)
 #     ) %>%
 #     na.omit()
 
+b_escolhas <- names(dados)[3:12]
+b_escolhas_qualitativo <- c(F,T,F,T,T,T,T,T,T,T)
+dados_b <- dados
+dados_b$posted_speed_limit <- as.factor(dados_b$posted_speed_limit)
+
+
+
 
 # lendo o banco de dados ja baixado pra n demorar muito
+
 
 dados <- read_csv("dados.csv")
 
@@ -57,7 +69,7 @@ header <- dashboardHeaderPlus(
 sidebar <- dashboardSidebar(
     sidebarMenu(
         menuItem("Gráfico .....", tabName = "aba_guilherme"), # aba para o guilherme fazer
-        menuItem("Gráfico ......", tabName = "aba_bruno"), # aba para o bruno fazer
+        menuItem("Gráfico de Correlação", tabName = "aba_bruno",icon = icon("chart-bar")), # aba para o bruno fazer
         menuItem("Mapa", tabName = "aba_gustavo") # aba para o gustavo fazer
     ),
     width = 180
@@ -90,18 +102,30 @@ body <- dashboardBody(
         ),
         tabItem(
             "aba_bruno",
-            # exemplo de aba
-            sidebarPanel(
-                sliderInput("bins_aba_2",
-                            "Number of bins:",
-                            min = 1,
-                            max = 50,
-                            value = 30)
-            ),
-            
-            # Show a plot of the generated distribution
-            mainPanel(
-                plotOutput("distPlot_aba_2")
+            fluidPage(
+                fluidRow(box(
+                    width = 6,
+                    selectInput(
+                        inputId = "b_input_2", multiple = FALSE, choices = names(dados)[3:12],
+                        label = "Selecione a variável do eixo Y"
+                    )
+                ),
+                box(
+                    width = 6,
+                    selectInput(
+                        inputId = "b_input_1", multiple = FALSE, choices = names(dados)[3:12],
+                        label = "Selecione a variável do eixo X", selected = names(dados)[4])
+                )),
+                
+                fluidRow(box(width = 12,title = "Gráfico 1",collapsible = TRUE,
+                             plotlyOutput("b_grafico_correlacao"))),
+                
+                fluidRow(box(width = 12,title = "Gráfico 2",collapsible = TRUE,
+                             plotlyOutput("b_grafico_correlacao2"))),
+                
+                fluidRow(box(width = 12,title = "Gráfico 3",collapsible = TRUE,
+                             plotlyOutput("b_grafico_correlacao3")))
+                
             )
         ),
         tabItem(
@@ -148,7 +172,7 @@ ui <- dashboardPagePlus(
 server <- function(input, output) {
     
     ######### ABA 1 ###########
-
+    
     output$distPlot_aba_1 <- renderPlot({
         # generate bins based on input$bins from ui.R
         x    <- faithful[, 2]
@@ -160,14 +184,64 @@ server <- function(input, output) {
     
     ######### ABA 2 ###########
     
-    output$distPlot_aba_2 <- renderPlot({
-        # generate bins based on input$bins from ui.R
-        x    <- faithful[, 2]
-        bins <- seq(min(x), max(x), length.out = input$bins_aba_2 + 1)
+    
+    output$gera_input2 <- renderUI({ 
+        nome <- names(dados_b)[3:12]
+        nome <- nome[nome != input$b_input_1]
         
-        # draw the histogram with the specified number of bins
-        hist(x, breaks = bins, col = 'darkgray', border = 'white')
     })
+    
+    output$b_grafico_correlacao <- renderPlotly({
+        
+       ggplot(dados_b) + 
+            geom_count(mapping = aes_string(x = input$b_input_1,y=input$b_input_2),colour="blue") +
+            scale_size(range=c(2, 8))
+       
+    })
+    
+    output$b_grafico_correlacao2 <- renderPlotly({
+        
+        if(b_escolhas_qualitativo[which(b_escolhas == input$b_input_1)]){
+            p <- ggplot(dados_b) + 
+                geom_mosaic(aes(product(!!sym(input$b_input_1),!!sym(input$b_input_2)),fill = !!sym(input$b_input_1)))
+        } else if(b_escolhas_qualitativo[which(b_escolhas == input$b_input_2)]){
+            p <- ggplot(dados_b) + 
+                geom_mosaic(aes(product(!!sym(input$b_input_1),!!sym(input$b_input_2)),fill = !!sym(input$b_input_2)))
+            
+        } else{
+            p <- ggplot(dados_b) + 
+                geom_mosaic(aes(product(!!sym(input$b_input_1),!!sym(input$b_input_2))))
+        }
+        ggplotly(p)
+    })
+    
+    output$b_grafico_correlacao3 <- renderPlotly({
+        
+        p <- ggplot(dados_b, aes_string(x=input$b_input_1))+
+            geom_bar(aes_string(fill = input$b_input_2), position = position_stack(reverse = TRUE))+
+            facet_wrap(~injuries)
+        
+        if(b_escolhas_qualitativo[which(b_escolhas == input$b_input_2)]){
+            p <- ggplot(dados_b, aes_string(x=input$b_input_1))+
+                geom_bar(aes_string(fill = input$b_input_2), position = position_stack(reverse = TRUE))+
+                facet_wrap(~injuries)
+        } else if(b_escolhas_qualitativo[which(b_escolhas == input$b_input_1)]){
+            p <- ggplot(dados_b, aes_string(x=input$b_input_1))+
+                geom_bar(aes_string(fill = input$b_input_1), position = position_stack(reverse = TRUE))+
+                facet_wrap(~injuries)
+            
+        } else{
+            p <- ggplot(dados_b, aes_string(x=input$b_input_1))+
+                geom_bar(aes_string(fill = input$b_input_2), position = position_stack(reverse = TRUE))+
+                facet_wrap(~injuries)
+        }
+        ggplotly(p)
+        
+        
+    })
+    
+
+    
     
     ######### ABA 3 ###########
     
@@ -195,9 +269,11 @@ server <- function(input, output) {
         leaflet(aux) %>%
             addTiles() %>%
             addHeatmap(lng = ~longitude, lat = ~latitude,
-                       blur = 17, max = max, radius = 20)
+                       blur = 20, max = max, radius = 10)
         
     })
+    
+    
 }
 
 # Run the application 
