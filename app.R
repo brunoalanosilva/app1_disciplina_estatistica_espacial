@@ -8,6 +8,7 @@ library(plotly)
 library(leaflet)
 library(leaflet.extras)
 library(ggmosaic)
+library(shinyWidgets)
 
 #library(RSocrata)
 
@@ -44,7 +45,11 @@ library(ggmosaic)
 # lendo o banco de dados ja baixado pra n demorar muito
 dados <- read_csv("dados.csv")
 
-dados_g <- dados
+dados_mapa <- dados %>%
+  filter(latitude != 0) # retirando latitudes e longitudes estranhas
+
+
+dados_g <- dados_mapa
 dados_g$weather_condition <- as.factor(dados_g$weather_condition)
 dados_g$lighting_condition <- as.factor(dados_g$lighting_condition)
 dados_g$roadway_surface_cond <- as.factor(dados_g$roadway_surface_cond)
@@ -55,12 +60,11 @@ b_escolhas_qualitativo <- c(F,T,F,T,T,T,T,T,T,T)
 dados_b <- dados
 dados_b$posted_speed_limit <- as.factor(dados_b$posted_speed_limit)
 
-
+dados_mapa$ano_mes <- format(as.Date(dados_mapa$crash_date), "%Y-%m")
+label2 <- row.names(table(dados_mapa$ano_mes))
 
 # fazendo o banco para o mapa sem as latitudes e longitudes 0
 
-dados_mapa <- dados %>%
-    filter(latitude != 0) # retirando latitudes e longitudes estranhas
 
 # componentes do UI
 
@@ -75,7 +79,9 @@ sidebar <- dashboardSidebar(
     sidebarMenu(
         menuItem("Gráfico de Correlação", tabName = "aba_bruno",icon = icon("chart-bar")), # aba para o bruno fazer
         menuItem("Mapa", tabName = "aba_gustavo"), # aba para o gustavo fazer
-        menuItem("Mapa -- cond de luz", tabName = "aba_guilherme", icon = icon("moon")) # aba para o guilherme fazer
+        menuItem("Mapa -- cond de luz", tabName = "aba_guilherme", icon = icon("moon")),
+        menuItem("Mapa Animado", tabName = "aba_bruno_animation", icon = icon("globe-americas"))
+        # aba para o guilherme fazer
     ),
     width = 180
 )
@@ -177,11 +183,38 @@ body <- dashboardBody(
                             leafletOutput("mapa_acidentes", height = "600px"),
                             width = 12
                         )
+                        
                     )
                 )
                 
             )
-        )
+        ),
+        tabItem("aba_bruno_animation",
+                fluidPage(
+                  # sliderInput("horasele", "Date",
+                  #             min = min(dados_mapa$ano_mes),
+                  #             max = max(dados_mapa$ano_mes),
+                  #             value = min(dados_mapa$ano_mes),
+                  #             step = "m",
+                  #             timeFormat = "%Y-%m",
+                  #             animate = animationOptions(interval = 500, loop = FALSE)
+                  # ),
+                  
+                  shinyWidgets::sliderTextInput(inputId = "mes_selec", label = "Mês",
+                                  choices =  label2, 
+                                  from_min =  label2[1], to_max = label2[22],animate = TRUE
+                                  ),
+                  
+                  # ,
+                  # 
+                  # 
+                   leafletOutput("map_b_animado")
+                  
+                )
+                
+                
+                )
+        
     )
 )
 
@@ -194,6 +227,26 @@ ui <- dashboardPage(
 
 server <- function(input, output) {
     
+  
+    output$map_b_animado  <- renderLeaflet({
+      cond <- dados_mapa %>%
+        filter(ano_mes == input$mes_selec)
+      
+      max <- nrow(cond)/200
+        
+      leaflet(cond) %>%
+        addProviderTiles(providers$CartoDB.DarkMatter) %>%
+        addHeatmap(
+          lng = ~ longitude,
+          lat = ~ latitude,
+          blur = 15,
+          max = max,
+          radius = 10
+        )    
+        
+
+    })
+      
     ######### ABA 1 ###########
     
     output$n_acidentes_1 <- renderValueBox({
