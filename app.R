@@ -78,7 +78,7 @@ header <- dashboardHeader(
 sidebar <- dashboardSidebar(
     sidebarMenu(
         menuItem("Gráfico de Correlação", tabName = "aba_bruno",icon = icon("chart-bar")), # aba para o bruno fazer
-        menuItem("Mapa", tabName = "aba_gustavo"), # aba para o gustavo fazer
+        menuItem("Mapa -- Lesão", tabName = "aba_gustavo", icon = icon("map-marker")), # aba para o gustavo fazer
         menuItem("Mapa -- cond de luz", tabName = "aba_guilherme", icon = icon("moon")),
         menuItem("Mapa Animado", tabName = "aba_bruno_animation", icon = icon("globe-americas"))
         # aba para o guilherme fazer
@@ -161,11 +161,11 @@ body <- dashboardBody(
             "aba_gustavo",
             fluidPage(
                 titlePanel(
-                    "Mapa com ocorrência dos acidentes"
+                    "Mapa com ocorrência dos acidentes conforme lesão"
                 ),
                 fluidRow(
                     column(
-                        width = 6,
+                        width = 4,
                         h4("Defina se serão apresentados os acidentes sem ou com lesão:"),
                         radioButtons("injury_3",
                                      label = NULL,
@@ -173,8 +173,9 @@ body <- dashboardBody(
                                      selected = "none",
                                      inline = T)
                     ),
+                    uiOutput("input_max_3"),
                     column(
-                        width = 6,
+                        width = 4,
                         valueBoxOutput("n_acidentes_3", width = 12),
                     ),
                     column(
@@ -366,16 +367,35 @@ server <- function(input, output) {
         )
     })
     
+    output$input_max_3 <- renderUI({
+      aux <- dados_mapa %>%
+        filter(injuries %in% input$injury_3)
+      
+      default <- nrow(aux)/200
+      
+      column(
+        width = 4,
+        h4("Defina o argumento de intensidade máxima do ponto"),
+        sliderInput("max_3",
+                    label = NULL,
+                    min = 0.5,
+                    max = 1000,
+                    value = default,
+                    step = 1)
+      )
+      
+    })
+    
     output$mapa_acidentes <- renderLeaflet({
         
         aux <- dados_mapa %>%
             filter(injuries %in% input$injury_3)
         
-        max <- nrow(aux)/200
+        max <- input$max_3
         
         leaflet(aux) %>%
-            addTiles() %>%
-            addHeatmap(lng = ~longitude, lat = ~latitude,
+          addProviderTiles(providers$CartoDB.DarkMatter) %>%
+          addHeatmap(lng = ~longitude, lat = ~latitude,
                        blur = 15, max = max, radius = 10)
         
     })
