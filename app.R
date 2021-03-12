@@ -61,8 +61,11 @@ dados_b <- dados
 dados_b$posted_speed_limit <- as.factor(dados_b$posted_speed_limit)
 
 dados_mapa$ano_mes <- format(as.Date(dados_mapa$crash_date), "%Y-%m")
-label2 <- row.names(table(dados_mapa$ano_mes))
+dados_mapa$ano_mes_dia <- format(as.Date(dados_mapa$crash_date), "%Y-%m-%d")
 
+
+label2 <- row.names(table(dados_mapa$ano_mes))
+label3 <- row.names(table(dados_mapa$ano_mes_dia))
 # fazendo o banco para o mapa sem as latitudes e longitudes 0
 
 
@@ -78,9 +81,11 @@ header <- dashboardHeader(
 sidebar <- dashboardSidebar(
   sidebarMenu(
     menuItem("Gráfico de Correlação", tabName = "aba_bruno",icon = icon("chart-bar")), # aba para o bruno fazer
-    menuItem("Mapa -- Lesão", tabName = "aba_gustavo", icon = icon("map-marker")), # aba para o gustavo fazer
+    menuItem("Mapa -- Lesão", tabName = "aba_gustavo", icon = icon("crutch")), # aba para o gustavo fazer
     menuItem("Mapa -- Iluminação", tabName = "aba_guilherme", icon = icon("moon")),
-    menuItem("Mapa Animado", tabName = "aba_bruno_animation", icon = icon("globe-americas"))
+    menuItem("Mapa Animado", tabName = "aba_bruno_animation", icon = icon("globe-americas")),
+    menuItem("Mapa Pontos", tabName = "aba_bruno_makers", icon = icon("map-marker")),
+    menuItem("Sobre", tabName = "aba_sobre", icon = icon("address-card"))
     # aba para o guilherme fazer
   ),
   width = 180
@@ -166,7 +171,7 @@ body <- dashboardBody(
         ),
         fluidRow(
           column(
-            width = 4,
+            width = 6,
             h4("Defina se serão apresentados os acidentes sem ou com lesão:"),
             radioButtons("injury_3",
                          label = NULL,
@@ -202,13 +207,13 @@ body <- dashboardBody(
               #             animate = animationOptions(interval = 500, loop = FALSE)
               # ),
               
-              shinyWidgets::sliderTextInput(inputId = "mes_selec", label = "Mês",
+              shinyWidgets::sliderTextInput(inputId = "mes_selec", label = "Selecione o mês ou aperte o play",
                                             choices =  label2, 
                                             from_min =  label2[1], to_max = label2[22],animate = TRUE
               ),
               
               column(
-                width = 4,
+                width = 6,
                 h4("Defina se serão apresentados os acidentes sem ou com lesão:"),
                 
                 checkboxGroupInput("injury_4", label = NULL,
@@ -227,7 +232,120 @@ body <- dashboardBody(
             )
             
             
-    )
+    ),
+    
+    tabItem("aba_bruno_makers",
+            fluidPage(
+              # sliderInput("horasele", "Date",
+              #             min = min(dados_mapa$ano_mes),
+              #             max = max(dados_mapa$ano_mes),
+              #             value = min(dados_mapa$ano_mes),
+              #             step = "m",
+              #             timeFormat = "%Y-%m",
+              #             animate = animationOptions(interval = 500, loop = FALSE)
+              # ),
+              
+              shinyWidgets::sliderTextInput(inputId = "mes_selec2", label = "Selecione o dia",
+                                            choices =  label3, 
+                                            from_min =  label3[1], to_max = label3[22],animate = FALSE
+              ),
+              
+              column(
+                width = 6,
+                h4("Defina se serão apresentados os acidentes sem ou com lesão:"),
+                
+                checkboxGroupInput("injury_5", label = NULL,
+                                   choices = list("Sem lesão" = "none",
+                                                  "Com lesão" = "injuries"),
+                                   selected = list("none","injuries"),
+                                   inline = T)
+                
+              ),
+              
+              # ,
+              # 
+              # 
+              leafletOutput("map_b_makers", height = "600px")
+              
+            )
+            
+            
+    ),
+    aba_sobre <- tabItem(
+      "aba_sobre",
+      fluidPage(
+        fluidRow(
+          #tags$img(src = "ufrgs_logo.png", height = 107 * 0.75),
+          tags$img(src = "ufrgs_logo2.png", height = 107 * 0.75),
+          tags$img(src = "ime.png", height = 107 * 0.75)
+        ),
+        tags$style(HTML(".irs-bar {background: yellow}")),
+        tags$style(HTML(".irs-bar {border-top: 1px solid green}")),
+        tags$style(HTML(".irs-bar-edge {background: red}")),
+        tags$style(HTML(".irs-bar-edge {border: 1px solid red}")),
+        br(),
+        fluidRow(
+          widgetUserBox(
+            title = "Projeto Estatística Espacial",
+            h4(
+              "Esse Aplicativo foi desenvolvido como parte da disciplina de Estatística Espacial da UFRGS ministrada pela Professora Marcia Barbian."
+            ),
+            #background = "orange",
+            type = 2,
+            collapsible = TRUE,
+            color = "light-blue",
+            width = 12,
+            tags$div(class = "box box-widget widget-user-2", style =
+                       "left: 407px;bottom: 207px;")
+          )),
+        fluidRow(
+          h2("Equipe de desenvolvimento"),
+          widgetUserBox(
+            title = "Bruno Alano da Silva",
+            subtitle = HTML("Estudante de Estatística da UFRGS"),
+            type = 2,
+            width = 4,
+            color = "green",
+            footer_padding = F,
+            collapsible = TRUE
+          ),
+          widgetUserBox(
+            title = "Guilherme Rodrigues Boff",
+            subtitle = HTML("Estudante de Estatística da UFRGS"),
+            type = 2,
+            width = 4,
+            color = "green",
+            footer_padding = F,
+            collapsible = TRUE
+          ),
+          widgetUserBox(
+            title = "Gustavo Machado Utpott",
+            subtitle = HTML("Estudante de Estatística da UFRGS"),
+            type = 2,
+            width = 4,
+            #src = 'https://github.com/franpallaoro/COVID-19/blob/ssjuliana/Dashboard/fotos/gustavo.png?raw=true',
+            color = "green",
+            footer_padding = F,
+            collapsible = TRUE
+          )
+        ),
+        fluidRow(
+          h2("Código Fonte"),
+          valueBox(
+            "Repositório Github",
+            subtitle = div(
+              "Confira aqui nosso repositório no GitHub!",
+              br(),
+            ),
+            icon = icon("github"),
+            color = "purple",
+            width = 12,
+            href = "https://github.com/gustavo-utpott/app1_disciplina_estatistica_espacial"
+          )
+        )
+      )
+    ) 
+    
     
   )
 )
@@ -259,6 +377,20 @@ server <- function(input, output) {
         max = max,
         radius = 10
       )    
+    
+    
+  })
+  
+  
+  output$map_b_makers  <- renderLeaflet({
+    cond <- dados_mapa %>%
+      filter(ano_mes_dia == input$mes_selec2, injuries %in% input$injury_5)
+  
+    
+    
+    leaflet(cond) %>% addTiles() %>% addMarkers(
+      clusterOptions = markerClusterOptions()
+    ) 
     
     
   })
